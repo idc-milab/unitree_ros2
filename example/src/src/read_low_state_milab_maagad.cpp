@@ -8,6 +8,8 @@
 #include "unitree_go/msg/imu_state.hpp"
 #include "unitree_go/msg/motor_state.hpp"
 
+#include <cstdio>
+
 #define INFO_IMU 1        // Set 1 to info IMU states
 #define INFO_MOTOR 1      // Set 1 to info motor states
 
@@ -20,6 +22,20 @@ class low_state_suber : public rclcpp::Node
 public:
   low_state_suber() : Node("low_state_suber")
   {
+    // Open output file and write header.
+    outputFile = fopen("go2_low_state_log.txt", "w");
+    fprintf(outputFile, "euler_roll, euler_pitch, euler_yaw, gyro_x, gyro_y, gyro_z, accel_x, accel_y, accel_z");
+    fprintf(outputFile, ", ");
+    for (int i = 0; i < 12; i++)
+    {
+      fprintf(outputFile, "m%d_q, m%d_dq, m%d_ddq, m%d_tau", i, i, i, i);
+      if (i < 11)
+      {
+        fprintf(outputFile, ", ");
+      }
+    }
+    fflush(outputFile);
+
     // suber is set to subscribe "/lowcmd" or  "lf/lowstate" (low frequencies) topic
     auto topic_name = "lf/lowstate";
     if (HIGH_FREQ)
@@ -29,6 +45,11 @@ public:
     // The suber  callback function is bind to low_state_suber::topic_callback
     suber = this->create_subscription<unitree_go::msg::LowState>(
         topic_name, 10, std::bind(&low_state_suber::topic_callback, this, _1));
+  }
+
+  virtual ~low_state_suber()
+  {
+    fclose(outputFile);
   }
 
 private:
@@ -68,6 +89,9 @@ private:
       }
     }
  }
+
+ private:
+  FILE* outputFile;
 
   // Create the suber  to receive low state of robot
   rclcpp::Subscription<unitree_go::msg::LowState>::SharedPtr suber;
